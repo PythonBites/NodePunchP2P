@@ -88,42 +88,6 @@ function Client() {
 		sockfd.on('message', messageforconnect);
 	};
 
-    var chat_fullcone = function() {
-        process.stdin.on('data', function(text) {
-            var text = new Buffer(text);  //奇怪的是单独测试时不需要转成buffer?
-            sockfd.send(text, 0, text.length, target.port, target.ip);
-        });
-        sockfd.on('message', function(msg, rinfo) {
-            console.log("peer: " + msg);
-        });
-    };
-    /*
-    def recv_msg(self, sock, is_restrict=False, event=None):
-        if is_restrict:
-            while True:
-                data, addr = sock.recvfrom(1024)
-                if self.periodic_running:
-                    print "periodic_send is alive"
-                    self.periodic_running = False
-                    event.set()
-                    print "received msg from target, periodic send cancelled, chat start."
-                if addr == self.target or addr == self.master:
-                    sys.stdout.write(data)
-                    if data == "punching...\n":
-                        sock.sendto("end punching\n", addr)
-        else:
-            while True:
-                data, addr = sock.recvfrom(1024)
-                if addr == self.target or addr == self.master:
-                    sys.stdout.write(data)
-                    if data == "punching...\n":
-                        sock.sendto("end punching", addr)
-    */
-     function send_msg(text) {
-         // 因为text就是Buffer, 所以直接送
-         sockfd.send(text, 0, text.length, target.port, target.ip);
-     }
-
     var chat = function(nat_type){
         if (nat_type == SymmetricNAT || peer_nat_type == SymmetricNAT) {
             console.log("Symmetric chat mode");
@@ -141,6 +105,51 @@ function Client() {
         }
     };
 
+    var chat_fullcone = function() {
+        process.stdin.on('data', function(text) {
+            var text = new Buffer(text);  //奇怪的是单独测试时不需要转成buffer?
+            sockfd.send(text, 0, text.length, target.port, target.ip);
+        });
+        sockfd.on('message', function(msg, rinfo) {
+            var msg = msg.toString('utf8');
+            console.log("peer: " + msg);
+            if (msg == 'punching...') {
+                var text = new Buffer("end punching");
+                sockfd.send(text, 0, text.length, target.port, target.ip);
+            }
+        });
+    };
+    
+    //现在没必要用event,直接在periodic_running=false的时候开stdin.on
+    var chat_restrict = function() {
+        var periodic_running = true;
+        function send(count) {
+            var text = new Buffer("punching...");
+            sockfd.send(text, 0, text.length, target.port, target.ip);
+            console.log("UDP punching package %d sent", count);
+            setTimeout(function(){
+                if (periodic_running)
+                    send(count+1);
+            }, 500);
+        }
+        send(0);
+        sockfd.on('message', function(msg, rinfo) {
+            if (periodic_running) {
+                console.log("periodic_send is alive");
+                periodic_running = false;
+                process.stdin.on('data', function(text) {
+                    var text = new Buffer(text);
+                    sockfd.send(text, 0, text.length, target.port, target.ip);
+                });
+            }
+            var msg = msg.toString('utf8');
+            console.log("peer: " + msg);
+            if (msg == 'punching...') {
+                var text = new Buffer("end punching");
+                sockfd.send(text, 0, text.length, target.port, target.ip);
+            }
+        });
+    };
 }
 
 
