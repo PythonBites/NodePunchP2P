@@ -24,6 +24,11 @@ var bytes2addr= function(bytes) {
 	return [ip, port, nat_type_id];
 }
 
+function print(s) {
+    console.log(s);
+}
+
+
 function test() {
     var b = addr2bytes(['127.0.0.1', 29325], 0);
     console.log(addr2bytes(['127.0.0.1', 29325], 0));
@@ -38,5 +43,5 @@ function test() {
 //test();
 exports.bytes2addr = bytes2addr;
 exports.addr2bytes = addr2bytes;
-
+exports.print = print;
 

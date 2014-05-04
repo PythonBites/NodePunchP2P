@@ -1,5 +1,6 @@
 var dgram = require("dgram");
 var utils = require("./utils.js");
+var print = utils.print;
 
 var FullCone = "Full Cone";  // 0
 var RestrictNAT = "Restrict NAT";  // 1
@@ -10,12 +11,12 @@ var argv = process.argv.slice(1);// 去掉'node'就和py相同了
 
 function check_input() {
 	if (argv.length != 5 && argv.length != 4) {
-		console.log("usage: node client.js <host> <port> <pool>");
+		print("usage: node client.js <host> <port> <pool>");
 		process.exit(1);
 	} else if (argv.length == 5) {
 		var test_nat_type = parseInt(argv[4]);  // test_nat_type is int
         if ([0, 1, 2, 3].indexOf(test_nat_type) == -1) {
-            console.log("test nat type should be [0,1,2,3]")
+            print("test nat type should be [0,1,2,3]")
         }
 	} else {
 		var test_nat_type = null;
@@ -29,13 +30,12 @@ function Client() {
 	var master = {ip: master_ip, port: parseInt(argv[2])};
 	var pool = argv[3];
 	var sockfd = null, target = null;
-	var periodic_running = false;
 	var peer_nat_type = null;
     var nat_type = null;
 	
 	this.main = function(test_nat_type) { // main是唯一public的函数,由它调用各种private
         test_nat_type = typeof test_nat_type != 'undefined' ? test_nat_type : null;
-        console.log(test_nat_type)
+        print(test_nat_type)
         if (test_nat_type === null) {
             var python = require('child_process').spawn(
                 'python27',
@@ -44,7 +44,7 @@ function Client() {
             python.stdout.on('data', function(data) {
                 nat_type = data.toString().split(':')[1].trim();
                 var nat_type_id = NATTYPE.indexOf(nat_type);
-                console.log(nat_type)
+                print(nat_type)
                 if (nat_type_id != -1)
                     request_for_connection(nat_type_id, chat);
             });
@@ -65,23 +65,23 @@ function Client() {
         var messageforconnect = function(msg, rinfo) {
             /*本来是用switch, 但是不知道为什么就是有bug,只能转用多个条件判断*/
             message = msg.toString();
-            console.log(message);
+            print(message);
             if (message == "ok " + pool) {
                 sockfd.send(sendmsg, 0, 2, master.port, master.ip);
-                console.log("request sent, waiting for partner in pool %s...", pool);
+                print("request sent, waiting for partner in pool %s...", pool);
             } else if (msg.length == 7) {
                 var result = utils.bytes2addr(msg);
                 target = {ip: result[0], port: result[1]};
                 peer_nat_type = NATTYPE[result[2]];
-                console.log("connected to %s:%s, its NAT type is %s",
+                print("connected to %s:%s, its NAT type is %s",
                             result[0], result[1], peer_nat_type);
                 sockfd.removeListener('message', messageforconnect);
                 if(typeof chat == 'function')
                     chat(nat_type);
                 else
-                    console.log("callback is not function!");
+                    print("callback is not function!");
             } else {
-                console.log("Got invalid response: " + msg);
+                print("Got invalid response: " + msg);
                 process.exit(2);
             }
         };
@@ -90,18 +90,18 @@ function Client() {
 
     var chat = function(nat_type){
         if (nat_type == SymmetricNAT || peer_nat_type == SymmetricNAT) {
-            console.log("Symmetric chat mode");
+            print("Symmetric chat mode");
             chat_symmetric();
         }
         else if (nat_type == FullCone) {
-            console.log("FullCone chat mode");
+            print("FullCone chat mode");
             chat_fullcone();
         }
         else if (nat_type == RestrictNAT || nat_type == RestrictPortNAT) {
-            console.log("Restrict chat mode");
+            print("Restrict chat mode");
             chat_restrict();
         } else {
-            console.log("NAT type wrong!");
+            print("NAT type wrong!");
         }
     };
 
@@ -112,21 +112,21 @@ function Client() {
         });
         sockfd.on('message', function(msg, rinfo) {
             var msg = msg.toString('utf8');
-            console.log("peer: " + msg);
+            print("peer: " + msg);
             if (msg == 'punching...') {
                 var text = new Buffer("end punching");
                 sockfd.send(text, 0, text.length, target.port, target.ip);
             }
         });
     };
-    
+
     //现在没必要用event,直接在periodic_running=false的时候开stdin.on
     var chat_restrict = function() {
         var periodic_running = true;
         function send(count) {
             var text = new Buffer("punching...");
             sockfd.send(text, 0, text.length, target.port, target.ip);
-            console.log("UDP punching package %d sent", count);
+            print("UDP punching package %d sent", count);
             setTimeout(function(){
                 if (periodic_running)
                     send(count+1);
@@ -135,7 +135,7 @@ function Client() {
         send(0);
         sockfd.on('message', function(msg, rinfo) {
             if (periodic_running) {
-                console.log("periodic_send is alive");
+                print("periodic_send is alive");
                 periodic_running = false;
                 process.stdin.on('data', function(text) {
                     var text = new Buffer(text);
@@ -143,12 +143,16 @@ function Client() {
                 });
             }
             var msg = msg.toString('utf8');
-            console.log("peer: " + msg);
+            print("peer: " + msg);
             if (msg == 'punching...') {
                 var text = new Buffer("end punching");
                 sockfd.send(text, 0, text.length, target.port, target.ip);
             }
         });
+    };
+
+    var chat_symmetric = function() {
+        //通过服务器转发, 这部分需要跟智华师兄协作完成
     };
 }
 
