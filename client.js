@@ -112,8 +112,8 @@ function Client() {
         sockfd.on('message', function(msg, rinfo) {
             var msg = msg.toString('utf8');
             process.stdout.write("peer: " + msg);
-            if (msg == 'punching...') {
-                var text = new Buffer("end punching");
+            if (msg == 'punching...\n') {
+                var text = new Buffer("end punching\n");
                 sockfd.send(text, 0, text.length, target.port, target.ip);
             }
         });
