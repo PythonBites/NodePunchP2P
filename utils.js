@@ -1,6 +1,6 @@
 var addr2bytes = function(addr, nat_type_id) {
-	var host = addr[0];  // "0.0.0.0"
-	var port = addr[1];  // int 23456
+	var host = addr.ip;  // "0.0.0.0"
+	var port = addr.port;  // int 23456
 	var bytes = Buffer(7);  // 和之前不同,现在用7个字节
 	var first4bytes = Buffer(host.split('.'));  // 用数字初始化
 	var byte5 = Math.floor(port/256);
@@ -24,11 +24,6 @@ var bytes2addr= function(bytes) {
 	return [ip, port, nat_type_id];
 }
 
-function print(s) {
-    console.log(s);
-}
-
-
 function test() {
     var b = addr2bytes(['127.0.0.1', 29325], 0);
     console.log(addr2bytes(['127.0.0.1', 29325], 0));
@@ -40,8 +35,9 @@ function test() {
     console.log(port)
     console.log(id);
 }
+
 //test();
 exports.bytes2addr = bytes2addr;
 exports.addr2bytes = addr2bytes;
-exports.print = print;
+exports.print = console.log;
 

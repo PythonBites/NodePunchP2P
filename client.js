@@ -35,7 +35,6 @@ function Client() {
 	
 	this.main = function(test_nat_type) { // main是唯一public的函数,由它调用各种private
         test_nat_type = typeof test_nat_type != 'undefined' ? test_nat_type : null;
-        print(test_nat_type)
         if (test_nat_type === null) {
             var python = require('child_process').spawn(
                 'python27',
@@ -112,7 +111,7 @@ function Client() {
         });
         sockfd.on('message', function(msg, rinfo) {
             var msg = msg.toString('utf8');
-            print("peer: " + msg);
+            process.stdout.write("peer: " + msg);
             if (msg == 'punching...') {
                 var text = new Buffer("end punching");
                 sockfd.send(text, 0, text.length, target.port, target.ip);
@@ -124,7 +123,7 @@ function Client() {
     var chat_restrict = function() {
         var periodic_running = true;
         function send(count) {
-            var text = new Buffer("punching...");
+            var text = new Buffer("punching...\n");
             sockfd.send(text, 0, text.length, target.port, target.ip);
             print("UDP punching package %d sent", count);
             setTimeout(function(){
@@ -143,9 +142,9 @@ function Client() {
                 });
             }
             var msg = msg.toString('utf8');
-            print("peer: " + msg);
-            if (msg == 'punching...') {
-                var text = new Buffer("end punching");
+            process.stdout.write("peer: " + msg);
+            if (msg == 'punching...\n') {
+                var text = new Buffer("end punching\n");
                 sockfd.send(text, 0, text.length, target.port, target.ip);
             }
         });

@@ -10,7 +10,7 @@ var NATTYPE = [FullCone, RestrictNAT, RestrictPortNAT, SymmetricNAT];
 var argv = process.argv.slice(1);// 去掉'node'就和py相同了
 
 function check_input() {
-    if (len(argv.length) != 2) {
+    if (argv.length != 2) {
         print("usage: ndoe server.js port");
         exit(1);
     }
@@ -36,6 +36,15 @@ function ClientInfo(addr, nat_type_id) {
     this.nat_type_id = nat_type_id;
 }
 
+function addrIndexOf(arr, o) {
+    for (var i = 0; i < arr.length; i++) {
+        if (arr[i].address == o.address && arr[i].port == o.port) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 function main(port) {
     var sock = dgram.createSocket('udp4');
     sock.bind(("", port));
@@ -48,17 +57,17 @@ function main(port) {
     var respond;
     sock.on("message", function(msg, rinfo) {
         var message = msg.toString('utf8');
+        client_addr = new addr(rinfo.address, rinfo.port);
         /* 可能存在的转发逻辑,
         if message 以 "msg" 开头, 就转发
          */
-        if (received_addr.indexOf(client_addr) == -1) { //第一次接收
-            client_addr = new addr(rinfo.ip, rinfo.port);
+        if (addrIndexOf(received_addr, client_addr) == -1) { //第一次接收
             received_addr.push(client_addr);  // 把這個addr加入已知addr列表
-            print("connection from %s:%d", rinfo.ip, rinfo.port);
-            pool = message.strip().split(' ')[0];
-            nat_type_id = message.strip().split(' ')[1];
-            respond = new Buffer("ok %s", pool);
-            sock.send(respond, 0, respond.length, rinfo.port, rinfo.ip);
+            print("connection from %s:%d", rinfo.address, rinfo.port);
+            pool = message.trim().split(' ')[0];
+            nat_type_id = message.trim().split(' ')[1];
+            respond = new Buffer("ok " + pool);
+            sock.send(respond, 0, respond.length, rinfo.port, rinfo.address);
             print("pool=%s, nat_type=%s, ok sent to client", pool, NATTYPE[parseInt(nat_type_id)]);
         } else if (message == "ok") {
             //接收到客戶端的"ok",必須是經過了第一次的,即client_addr in received_addr
@@ -69,8 +78,11 @@ function main(port) {
                 var nat_type_id_a = poolqueue[pool].nat_type_id;
                 var nat_type_id_b = nat_type_id;
                 respond = utils.addr2bytes(a, nat_type_id_a);
+                print(respond.length);
+                print(b);
                 sock.send(respond, 0, respond.length, b.port, b.ip);
                 respond = utils.addr2bytes(b, nat_type_id_b);
+                print(a);
                 sock.send(respond, 0, respond.length, a.port, a.ip);
                 print("linked" + pool);
                 delete poolqueue[pool];
